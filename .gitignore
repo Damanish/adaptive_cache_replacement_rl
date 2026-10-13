@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+data/cache/
+report/*.aux
+report/*.log
+report/*.out
+report/*.synctex.gz
