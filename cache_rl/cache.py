@@ -6,6 +6,11 @@ Cache simulators.
   insertion time). The victim on a miss is chosen by whichever policy is active
   at that moment, so the RL agent can switch policy at any time without
   flushing or rebuilding the cache.
+
+  LFU uses exponentially *aged* frequency counts (half-life H requests, default
+  10*C). Pure LFU never forgets: blocks that were hot in an earlier workload
+  phase stay resident forever ("cache pollution"); aging is the standard
+  practical fix and keeps LFU meaningful under phase changes.
 * ARCCache - Adaptive Replacement Cache (Megiddo & Modha, FAST'03), used as the
   classical *adaptive* baseline.
 * belady_hits - Belady's MIN (clairvoyant optimum), used as an upper bound.
@@ -17,15 +22,16 @@ from collections import OrderedDict
 
 import numpy as np
 
-LRU, LFU, FIFO = 0, 1, 2
-POLICY_NAMES = ("LRU", "LFU", "FIFO")
+LRU, LFU, FIFO, MRU = 0, 1, 2, 3
+POLICY_NAMES = ("LRU", "LFU", "FIFO", "MRU")
 
 
 class MultiPolicyCache:
-    __slots__ = ("C", "slot_of", "keys", "last", "freq", "ins", "size", "t")
+    __slots__ = ("C", "slot_of", "keys", "last", "freq", "ins", "size", "t", "inv_h")
 
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int, half_life: float | None = None):
         self.C = capacity
+        self.inv_h = 1.0 / (half_life if half_life else 10.0 * capacity)
         self.reset()
 
     def reset(self):
@@ -33,7 +39,7 @@ class MultiPolicyCache:
         self.slot_of = {}
         self.keys = [-1] * C
         self.last = np.zeros(C, dtype=np.int64)
-        self.freq = np.zeros(C, dtype=np.int64)
+        self.freq = np.zeros(C, dtype=np.float64)   # aged count, valid at time `last`
         self.ins = np.zeros(C, dtype=np.int64)
         self.size = 0
         self.t = 0
@@ -42,10 +48,13 @@ class MultiPolicyCache:
     def _victim(self, policy: int) -> int:
         if policy == LRU:
             return int(self.last.argmin())
+        if policy == MRU:
+            return int(self.last.argmax())
         if policy == FIFO:
             return int(self.ins.argmin())
-        # LFU, ties broken by least-recent access
-        return int((self.freq * (1 << 40) + self.last).argmin())
+        # aged LFU: f * 2^{-(t - last)/H}; ties (e.g. all ~0) broken by recency
+        eff = self.freq * np.exp2((self.last - self.t) * self.inv_h)
+        return int((eff + 1e-9 * self.last / self.t).argmin())
 
     # -- main entry points -----------------------------------------------------
     def access(self, key: int, policy: int) -> bool:
@@ -53,8 +62,8 @@ class MultiPolicyCache:
         self.t += 1
         s = self.slot_of.get(key)
         if s is not None:
+            self.freq[s] = self.freq[s] * 2.0 ** ((self.last[s] - self.t) * self.inv_h) + 1.0
             self.last[s] = self.t
-            self.freq[s] += 1
             return True
         if self.size < self.C:
             s = self.size

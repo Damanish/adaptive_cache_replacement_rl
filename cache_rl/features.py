@@ -16,12 +16,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .cache import FIFO, LFU, LRU, fixed_policy_hits
+from .cache import FIFO, LFU, LRU, MRU, fixed_policy_hits
 from .workloads import Trace
 
+GHOST_POLICIES = (LRU, LFU, FIFO, MRU)
 TRACE_FEATURES = (
-    "ghost_lru", "ghost_lfu", "ghost_fifo",            # shadow-cache hit rates (last window)
-    "ghost_lru_ema", "ghost_lfu_ema", "ghost_fifo_ema",  # same, long-horizon EMA
+    "ghost_lru", "ghost_lfu", "ghost_fifo", "ghost_mru",                  # shadow-cache hit rates (last window)
+    "ghost_lru_ema", "ghost_lfu_ema", "ghost_fifo_ema", "ghost_mru_ema",  # same, long-horizon EMA
     "unique_ratio",                                     # distinct keys / W
     "seq_ratio",                                        # P(key_t = key_{t-1}+1)
     "new_ratio",                                        # first-ever references / W
@@ -30,7 +31,7 @@ TRACE_FEATURES = (
     "entropy",                                          # normalised popularity entropy
     "jaccard",                                          # key-set overlap with previous window
 )
-AGENT_FEATURES = ("own_hr", "own_hr_ema", "frac_freq1", "prev_LRU", "prev_LFU", "prev_FIFO")
+AGENT_FEATURES = ("own_hr", "own_hr_ema", "frac_freq1", "prev_LRU", "prev_LFU", "prev_FIFO", "prev_MRU")
 OBS_DIM = len(TRACE_FEATURES) + len(AGENT_FEATURES)
 
 
@@ -40,7 +41,7 @@ class PreparedTrace:
     window: int
     cache_size: int
     feats: np.ndarray        # (n_windows, len(TRACE_FEATURES)) stats *of* window w
-    ghost_hits: np.ndarray   # (3, n) per-request hits of fixed LRU/LFU/FIFO
+    ghost_hits: np.ndarray   # (4, n) per-request hits of fixed LRU/LFU/FIFO/MRU
 
     @property
     def n_windows(self) -> int:
@@ -52,7 +53,7 @@ def prepare_trace(trace: Trace, cache_size: int, window: int, ema: float = 0.8) 
     n = len(keys)
     nw = n // window
     C = cache_size
-    ghosts = np.stack([fixed_policy_hits(keys, C, p) for p in (LRU, LFU, FIFO)])
+    ghosts = np.stack([fixed_policy_hits(keys, C, p) for p in GHOST_POLICIES])
 
     # reuse interval (time since previous reference to same key)
     last_seen = {}

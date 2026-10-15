@@ -2,9 +2,14 @@
 Gym-style environment: one episode = one (multi-phase) trace.
 
     obs_t   = [trace statistics of window t-1, own hit-rate stats, cache stats, prev action]
-    a_t     in {0: LRU, 1: LFU, 2: FIFO} -> victim-selection rule for all misses in window t
-    r_t     = (1/W) * sum_{i in window t} ( +1[hit_i] - 1[miss_i] )      (default)
-            or latency based:  -AMAT_t / L_miss
+    a_t     in {0: LRU, 1: LFU, 2: FIFO [, 3: MRU]} -> victim rule for all misses in window t
+    r_t     = (1/W) * sum_{i in window t} ( +1[hit_i] - 1[miss_i] )      ("hitmiss")
+            or latency based:  -AMAT_t / L_miss                         ("latency")
+            or "relative":  hitmiss_t - hitmiss_t(shadow LRU cache)
+              The shadow term depends only on the request stream (never on
+              the agent's actions), so the optimal policy is unchanged, but
+              it removes the large phase-driven swings in hit rate from the
+              TD targets (variance reduction).
     done    when the trace is exhausted
 """
 from __future__ import annotations
@@ -16,21 +21,23 @@ import numpy as np
 from .cache import MultiPolicyCache
 from .features import OBS_DIM, TRACE_FEATURES, PreparedTrace
 
-N_ACTIONS = 3
+N_PREV = 4   # prev-action one-hot always has 4 slots so obs layout is fixed
 
 
 class CacheEnv:
     def __init__(self, traces: List[PreparedTrace], reward: str = "hitmiss",
                  hit_latency: float = 1.0, miss_latency: float = 100.0,
-                 switch_cost: float = 0.0, ema: float = 0.8, seed: int = 0):
+                 switch_cost: float = 0.0, ema: float = 0.8, seed: int = 0,
+                 n_actions: int = 3):
         assert traces, "need at least one prepared trace"
+        assert n_actions in (3, 4)
         self.traces = traces
         self.reward_type = reward
         self.hl, self.ml = hit_latency, miss_latency
         self.switch_cost = switch_cost
         self.ema = ema
         self.rng = np.random.default_rng(seed)
-        self.obs_dim, self.n_actions = OBS_DIM, N_ACTIONS
+        self.obs_dim, self.n_actions = OBS_DIM, n_actions
         self.cache: Optional[MultiPolicyCache] = None
 
     # ------------------------------------------------------------------ #
@@ -49,7 +56,7 @@ class CacheEnv:
 
     def _obs(self) -> np.ndarray:
         tf = self.pt.feats[self.w - 1] if self.w > 0 else np.zeros(len(TRACE_FEATURES), np.float32)
-        onehot = np.zeros(3, np.float32)
+        onehot = np.zeros(N_PREV, np.float32)
         onehot[self.prev] = 1.0
         return np.concatenate([tf, [self.own_hr, self.own_ema, self.cache.frac_freq_one()], onehot]
                               ).astype(np.float32)
@@ -62,6 +69,8 @@ class CacheEnv:
         h = hits / W
         if self.reward_type == "latency":
             r = -(h * self.hl + (1 - h) * self.ml) / self.ml
+        elif self.reward_type == "relative":
+            r = 2.0 * (h - self.pt.feats[self.w, 0])     # feats[w,0] = shadow-LRU hit rate of window w
         else:
             r = 2.0 * h - 1.0
         if action != self.prev:
