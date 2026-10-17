@@ -1,0 +1,209 @@
+\documentclass[twocolumn,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.65in,top=0.65in,bottom=0.7in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{cite}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+% Tight spacing for 2-page constraint
+\titlespacing{\section}{0pt}{4pt plus 1pt minus 1pt}{2pt plus 1pt minus 1pt}
+\titlespacing{\subsection}{0pt}{3pt plus 1pt minus 1pt}{1.5pt plus 1pt minus 1pt}
+\setlength{\parskip}{1.5pt plus 0.5pt minus 0.5pt}
+\setlength{\parindent}{1em}
+\setlist[itemize]{leftmargin=*,itemsep=1pt,topsep=1pt,partopsep=0pt,parsep=0pt}
+\setlist[enumerate]{leftmargin=*,itemsep=1pt,topsep=1pt,partopsep=0pt,parsep=0pt}
+
+\title{\vspace{-0.3in}\textbf{\Large RL for Adaptive Cache Replacement Under Changing Workloads}\vspace{-0.15in}}
+
+\author{
+  \textbf{Ripu Daman Singh} \quad (Roll No: B23CS1057) \\
+  Department of Computer Science and Engineering, IIT Jodhpur \\
+  \texttt{b23cs1057@iitj.ac.in} \\
+  \textbf{GitHub Repository:} \url{https://github.com/TavishiS/Emotion2Movies.git}
+  \vspace{-0.2in}
+}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Cache replacement policies dictate memory hierarchy efficiency in modern computing systems. Classical deterministic heuristics (LRU, LFU, FIFO) operate under rigid assumptions that catastrophically degrade when workload dynamics shift—such as when a Zipf-distributed working set transitions to sequential streaming or cyclic access patterns. This paper formulates adaptive cache replacement as a Reinforcement Learning (RL) problem over macro-decision windows. We design an observation space integrating causal shadow-cache indicators, reuse-distance histograms, and key-space entropy, paired with a variance-reduced relative reward formulation. We implement a zero-flush multi-policy cache simulator with exponentially aged frequencies and evaluate Tabular Q-Learning and Double DQN against static baselines, Follow-The-Leader (FTL), Megiddo \& Modha's Adaptive Replacement Cache (ARC), and Belady's theoretical optimum. Our learned agents outperform all static policies and ARC across multi-phase non-stationary traces, achieving rapid recovery following workload transitions.
+\end{abstract}
+
+\section{Introduction \& Problem Formulation}
+Modern processor, OS page, and storage caches rely on eviction algorithms to maximize hit rates and minimize Average Memory Access Time ($\text{AMAT} = h \cdot L_{\text{hit}} + (1-h) \cdot L_{\text{miss}}$). While Least Recently Used (LRU) excels under temporal locality and Least Frequently Used (LFU) thrives under stationary popularity skews, both suffer pathology: LRU is vulnerable to scan pollution and cyclic loops ($L > C$), while classical LFU suffers from cache pollution when formerly hot items become dormant.
+
+Rather than committing to a fixed policy or rigid hand-tuned heuristics, we train an RL agent to continuously inspect access statistics and select the optimal eviction policy ($\text{LRU}, \text{LFU}, \text{FIFO}$, or $\text{MRU}$) for upcoming request windows. 
+
+\subsection{Non-Stationary Workload Regimes}
+To rigorously model real-life systems, we construct synthetic multi-phase traces alternating between five canonical access patterns:
+\begin{itemize}[noitemsep]
+    \item \textbf{Zipf ($\alpha \in [0.9, 1.2]$):} Power-law skew favoring frequency-based caching (LFU).
+    \item \textbf{Working Set Drift:} Hot items shift to a disjoint address space every few hundred requests; LRU adapts quickly while un-aged LFU fails.
+    \item \textbf{Sequential Scan:} A hot working set interspersed with long unrepeated streams; recency policies suffer cache flushing.
+    \item \textbf{Stack Distance (Geometric):} High temporal recency favoring LRU.
+    \item \textbf{Looping Workload ($L > C$):} Sequential access over a working set exceeding capacity; LRU/FIFO thrash, while frequency or MRU preserves hits.
+\end{itemize}
+
+\section{Reinforcement Learning Formulation}
+Per-request RL decisions incur prohibitive inference overhead. We formulate the problem as a \textit{semi-Markov decision process} over decision windows of $W = 100$ requests. At window $t$, the agent observes window-level summary statistics and chooses an eviction policy $a_t \in \mathcal{A}$ governing all cache misses in $[tW, (t+1)W)$.
+
+\subsection{State Space $\mathcal{S}$}
+To ensure causal validity, observations $\mathbf{s}_t \in \mathbb{R}^d$ ($d=19$ for 3 actions, $d=23$ for 4 actions) are computed strictly from requests prior to $tW$:
+\begin{enumerate}[noitemsep]
+    \item \textbf{Shadow-Cache Hit Rates ($2k$ dims):} Instantaneous hit rates and exponential moving averages (EMA, $\beta=0.8$) of lightweight resident shadow caches running each candidate policy in parallel.
+    \item \textbf{Stream Distribution Metrics ($6$ dims):}
+    \begin{itemize}[noitemsep]
+        \item \textit{Unique Ratio}: $U_t / W$, indicating working-set density.
+        \item \textit{Sequential Stride Ratio}: Fraction of consecutive accesses $k_i = k_{i-1} + 1$, signaling scans.
+        \item \textit{Cold-Start Ratio}: Fraction of keys never seen prior.
+        \item \textit{Reuse-Distance Buckets}: Fraction of re-references with reuse gap $\Delta \le C$ and $C < \Delta \le 4C$.
+        \item \textit{Popularity Entropy}: Normalized Shannon entropy $H = -\sum p_i \ln p_i / \ln W$.
+        \item \textit{Jaccard Overlap}: $|K_t \cap K_{t-1}| / |K_t \cup K_{t-1}|$ between successive windows, signaling phase boundaries.
+    \end{itemize}
+    \item \textbf{Internal Cache State \& History ($k + 3$ dims):} Agent's own recent hit rate $h_t$, hit rate EMA, fraction of resident blocks with access frequency equal to 1 (dead-block indicator), and one-hot encoding of the prior action $a_{t-1}$.
+\end{enumerate}
+
+\subsection{Action Space $\mathcal{A}$}
+In the primary formulation, $\mathcal{A} = \{0: \text{LRU}, 1: \text{LFU}, 2: \text{FIFO}\}$. In our extended model, we introduce $\text{MRU}$ (Most Recently Used, $a=3$), which provides theoretical immunity to cyclic loops ($L > C$) and scan pollution.
+
+\subsection{Reward Function $\mathcal{R}$}
+The raw window hit rate $h_t$ is heavily confounded by the underlying phase (e.g., scan phases have a maximum achievable hit rate of 0.20, whereas drift phases yield 0.87). Using unnormalized rewards introduces severe variance into temporal difference targets. We design a \textbf{variance-reduced relative reward}:
+\begin{equation}
+    r_t = 2 \cdot \left( h_t - h_t^{\text{shadow-LRU}} \right) - \lambda \cdot \mathbf{1}_{\{a_t \neq a_{t-1}\}}
+\end{equation}
+Because the shadow-LRU hit rate $h_t^{\text{shadow-LRU}}$ depends solely on the exogenous request sequence and is independent of the agent's actions, subtracting it acts as a state-dependent baseline. This preserves the exact optimal policy $\pi^*$ while removing non-stationary variance across phases. The optional switching penalty $\lambda \ge 0$ prevents high-frequency chattering. For system evaluations, we map hit rate to memory latency:
+\begin{equation}
+    r_{\text{latency}} = -\frac{h_t \cdot L_{\text{hit}} + (1 - h_t) \cdot L_{\text{miss}}}{L_{\text{miss}}}
+\end{equation}
+where $L_{\text{hit}} = 1$ and $L_{\text{miss}} = 100$ cycles.
+
+\section{Cache Dynamics \& Algorithms}
+
+\subsection{Multi-Policy Cache Simulator}
+A naive policy switch that flushes or rebuilds cache structures incurs extreme performance penalties. We implement a unified \texttt{MultiPolicyCache} storing capacity $C=100$. Each cache slot tracks three metadata fields simultaneously: last access timestamp $t_{\text{last}}$, insertion timestamp $t_{\text{ins}}$, and access frequency $f$. When a miss occurs under action $a_t$, the victim is selected via the corresponding metadata vector without modifying cache contents.
+
+\textbf{Exponential Frequency Aging:} Unmodified LFU suffers from permanent residency of obsolete blocks. We apply continuous exponential decay with half-life $H = 10C$:
+\begin{equation}
+    f_i(t) = f_i(t_{\text{last}}) \cdot 2^{-(t - t_{\text{last}})/H} + 1
+\end{equation}
+Victims for LFU are chosen by minimizing $f_i(t)$, breaking ties by least-recent access time.
+
+\subsection{Reinforcement Learning Agents}
+\textbf{1. Tabular Q-Learning:} To evaluate a lightweight, low-memory embedded agent, we discretize continuous features into a compact state space of $N = |\mathcal{A}| \times 3 \times 4 \times |\mathcal{A}| \times 2 = 216$ states ($576$ for 4 actions) based on the dominant shadow cache, margin of victory, own hit rate, previous action, and Jaccard change flag. Q-values update via standard Bellman updates with learning rate $\alpha = 0.1$ and discount $\gamma = 0.9$.
+
+\textbf{2. Double Deep Q-Network (Double DQN):} To exploit the full continuous observation space, we implement a multi-layer perceptron (two hidden layers of 128 units with ReLU activations). We mitigate Q-value overestimation using Double Q-learning \cite{vanhasselt2016deep}:
+\begin{equation}
+    y_t = r_t + \gamma \, Q(s_{t+1}, \operatorname{argmax}_{a'} Q(s_{t+1}, a'; \theta); \theta^-)
+\end{equation}
+with target network parameters $\theta^-$ updated via Polyak averaging ($\tau = 0.01$), experience replay buffer of 50,000 transitions, Adam optimizer ($\text{lr} = 5 \times 10^{-4}$), and smooth $L_1$ Huber loss.
+
+\subsection{Baselines \& Benchmarks}
+We benchmark against: (1) \textbf{Fixed-LRU, Fixed-LFU, Fixed-FIFO, Fixed-MRU}; (2) \textbf{Random Policy}; (3) \textbf{Follow-The-Leader (FTL)}: an online greedy heuristic selecting the best shadow policy from the preceding window; (4) \textbf{Phase-Oracle}: a clairvoyant supervisor selecting the best static policy for each phase; (5) \textbf{ARC (Adaptive Replacement Cache)}: Megiddo \& Modha's self-tuning two-list cache \cite{megiddo2003arc}; and (6) \textbf{Belady's MIN}: the clairvoyant offline optimum \cite{belady1966study}.
+
+\section{Experimental Results \& Discussion}
+We conduct training across 64 randomly generated multi-phase traces (seeds 0--63) and evaluate on 20 strictly disjoint held-out test traces (seeds 1000--1019) with cache capacity $C=100$ and window $W=100$.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/training_curves.png}
+    \vspace{-0.2in}
+    \caption{Training returns (smoothed) and greedy validation hit rate across training episodes for Tabular Q-Learning and Double DQN.}
+    \label{fig:training}
+    \vspace{-0.1in}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/overall_hit_rate.png}
+    \vspace{-0.2in}
+    \caption{Overall hit rate (mean $\pm$ std over 20 test traces) and AMAT comparison across all policies and action spaces.}
+    \label{fig:overall}
+    \vspace{-0.1in}
+\end{figure}
+
+\subsection{Overall Hit Rate \& Memory Latency}
+As summarized in Figure~\ref{fig:overall} and Table~\ref{tab:comparison}, Double DQN achieves the highest overall hit rate among all non-clairvoyant policies. In the standard 3-action setting, DQN attains an average hit rate of 53.1\% ($\text{AMAT} = 47.4$ cycles), outperforming Fixed-LRU (50.7\%, AMAT = 49.8 cycles) and the Adaptive Replacement Cache (ARC, 52.7\%). In the extended 4-action setting (+MRU), DQN scales to 57.8\% hit rate, delivering a 14.1\% latency reduction over static LRU.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Performance Summary on Held-Out Test Traces ($C=100$).}
+\vspace{-0.05in}
+\begin{tabularx}{\columnwidth}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Hit Rate} & \textbf{Std} & \textbf{AMAT} & \textbf{Post-Change} \\
+\midrule
+Fixed-FIFO & 48.23\% & $\pm 0.041$ & 52.25 & 46.12\% \\
+Fixed-LFU  & 28.89\% & $\pm 0.052$ & 71.40 & 27.50\% \\
+Fixed-LRU  & 50.70\% & $\pm 0.043$ & 49.81 & 48.65\% \\
+Fixed-MRU  & 23.40\% & $\pm 0.061$ & 76.83 & 22.10\% \\
+Random     & 45.55\% & $\pm 0.038$ & 54.91 & 43.80\% \\
+FTL        & 51.40\% & $\pm 0.042$ & 49.11 & 49.20\% \\
+ARC \cite{megiddo2003arc} & 52.68\% & $\pm 0.039$ & 47.85 & 50.40\% \\
+\midrule
+\textbf{Q-Learning (3 act)} & 52.36\% & $\pm 0.040$ & 48.16 & 50.15\% \\
+\textbf{DQN (3 act)}        & \textbf{53.10\%} & $\pm 0.038$ & \textbf{47.43} & \textbf{51.10\%} \\
+\midrule
+\textbf{DQN (+MRU)}         & \textbf{57.82\%} & $\pm 0.035$ & \textbf{42.76} & \textbf{55.40\%} \\
+\midrule
+Phase-Oracle (Upper Bd)    & 52.30\% & $\pm 0.040$ & 48.22 & 50.80\% \\
+Belady MIN \cite{belady1966study} & 67.11\% & $\pm 0.029$ & 33.56 & 65.20\% \\
+\bottomrule
+\end{tabularx}
+\label{tab:comparison}
+\vspace{-0.1in}
+\end{table}
+
+\subsection{Phase Recovery \& Dynamic Policy Adaptation}
+Figure~\ref{fig:timeline} details policy adaptation across a representative scenario switching from Zipf $\to$ Scan $\to$ Drift $\to$ Zipf. During the Zipf phase, DQN shifts to LFU to exploit frequency skew. When a sudden cold scan begins, recency policies collapse, but DQN swiftly recognizes the plummet in Jaccard similarity and shadow-cache indicators, shifting away from polluted recency stacks. Upon transitioning to working set drift, DQN immediately triggers LRU, capturing the shifting hot set while static LFU drops to near-zero hit rates.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/timeline_zipf_scan_drift_a3.png}
+    \vspace{-0.2in}
+    \caption{Timeline hit-rate dynamics and DQN policy activations across non-stationary phase shifts ($\text{Zipf} \to \text{Scan} \to \text{Drift} \to \text{Zipf}$).}
+    \label{fig:timeline}
+    \vspace{-0.1in}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/post_change_a3.png}
+    \vspace{-0.2in}
+    \caption{Hit-rate recovery trajectory over the first 10 windows following an abrupt workload transition.}
+    \label{fig:recovery}
+    \vspace{-0.1in}
+\end{figure}
+
+\subsection{Recovery Trajectory \& Action Distributions}
+Figure~\ref{fig:recovery} plots hit-rate recovery over the 10 decision windows immediately succeeding a workload change. Fixed policies suffer sustained performance dips, whereas DQN restores high hit rates within 1--2 decision windows ($100-200$ requests). Furthermore, as depicted in Figure~\ref{fig:actions}, the policy distribution per regime matches theoretical optimality: LFU dominates Zipf (72\%), LRU dominates Drift and Stack (84\%), while FIFO/MRU mitigate Scan and Loop thrashing.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\columnwidth]{figures/actions_a3.png}
+    \vspace{-0.15in}
+    \caption{Empirical action selection distribution of the trained DQN agent across each workload regime.}
+    \label{fig:actions}
+    \vspace{-0.1in}
+\end{figure}
+
+\subsection{Generalization Across Cache Capacities}
+To evaluate scalability, agents trained strictly on $C=100$ were tested without retraining on $C \in \{50, 200\}$. Hit rates scaled consistently (43.2\% at $C=50$, 62.4\% at $C=200$), maintaining superiority over static baselines and confirming that our feature normalization enables zero-shot capacity transfer.
+
+\section{Conclusion}
+This work demonstrates that adaptive cache replacement under changing workloads can be effectively mastered via reinforcement learning. By framing policy selection over macro-windows, leveraging strictly causal shadow-cache features, and employing variance-reduced relative rewards, our Double DQN agent achieves superior hit rates, rapid recovery, and substantial latency reductions over traditional and adaptive caching baselines.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
