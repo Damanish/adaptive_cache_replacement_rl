@@ -132,7 +132,7 @@ We conduct training across 64 randomly generated multi-phase traces (seeds 0--63
 \end{figure}
 
 \subsection{Overall Hit Rate \& Memory Latency}
-As summarized in Figure~\ref{fig:overall} and Table~\ref{tab:comparison}, Double DQN achieves the highest overall hit rate among all non-clairvoyant policies. In the standard 3-action setting, DQN attains an average hit rate of 53.1\% ($\text{AMAT} = 47.4$ cycles), outperforming Fixed-LRU (50.7\%, AMAT = 49.8 cycles) and the Adaptive Replacement Cache (ARC, 52.7\%). In the extended 4-action setting (+MRU), DQN scales to 57.8\% hit rate, delivering a 14.1\% latency reduction over static LRU.
+As summarized in Figure~\ref{fig:overall} and Table~\ref{tab:comparison}, Double DQN achieves the highest overall hit rate among all non-clairvoyant policies. In the standard 3-action setting, DQN attains an average hit rate of 57.50\% ($\text{AMAT} = 43.08$ cycles), outperforming Fixed-LRU (54.71\%, AMAT = 45.84 cycles), Follow-The-Leader (55.73\%), and the Adaptive Replacement Cache (ARC, 57.11\%). In the extended 4-action setting (+MRU), DQN scales to 63.58\% hit rate ($\text{AMAT} = 37.06$ cycles), delivering an 19.2\% latency reduction over static LRU and closely approaching Belady's theoretical limit (68.63\%).
 
 \begin{table}[h]
 \centering
@@ -143,21 +143,22 @@ As summarized in Figure~\ref{fig:overall} and Table~\ref{tab:comparison}, Double
 \toprule
 \textbf{Method} & \textbf{Hit Rate} & \textbf{Std} & \textbf{AMAT} & \textbf{Post-Change} \\
 \midrule
-Fixed-FIFO & 48.23\% & $\pm 0.041$ & 52.25 & 46.12\% \\
-Fixed-LFU  & 28.89\% & $\pm 0.052$ & 71.40 & 27.50\% \\
-Fixed-LRU  & 50.70\% & $\pm 0.043$ & 49.81 & 48.65\% \\
-Fixed-MRU  & 23.40\% & $\pm 0.061$ & 76.83 & 22.10\% \\
-Random     & 45.55\% & $\pm 0.038$ & 54.91 & 43.80\% \\
-FTL        & 51.40\% & $\pm 0.042$ & 49.11 & 49.20\% \\
-ARC \cite{megiddo2003arc} & 52.68\% & $\pm 0.039$ & 47.85 & 50.40\% \\
+Fixed-FIFO & 52.27\% & $\pm 0.073$ & 48.26 & 51.28\% \\
+Fixed-LFU  & 33.14\% & $\pm 0.040$ & 67.19 & 33.76\% \\
+Fixed-LRU  & 54.71\% & $\pm 0.074$ & 45.84 & 53.51\% \\
+Fixed-MRU  & 4.32\%  & $\pm 0.028$ & 95.73 & 2.01\% \\
+Random     & 50.88\% & $\pm 0.068$ & 49.63 & 50.80\% \\
+FTL        & 55.73\% & $\pm 0.075$ & 44.83 & 53.41\% \\
+ARC \cite{megiddo2003arc} & 57.11\% & $\pm 0.066$ & 43.46 & 54.20\% \\
 \midrule
-\textbf{Q-Learning (3 act)} & 52.36\% & $\pm 0.040$ & 48.16 & 50.15\% \\
-\textbf{DQN (3 act)}        & \textbf{53.10\%} & $\pm 0.038$ & \textbf{47.43} & \textbf{51.10\%} \\
+\textbf{Q-Learning (3 act)} & 56.79\% & $\pm 0.070$ & 43.78 & 53.75\% \\
+\textbf{DQN (3 act)}        & \textbf{57.50\%} & $\pm 0.068$ & \textbf{43.08} & \textbf{54.49\%} \\
 \midrule
-\textbf{DQN (+MRU)}         & \textbf{57.82\%} & $\pm 0.035$ & \textbf{42.76} & \textbf{55.40\%} \\
+\textbf{Q-Learning (+MRU)}  & 60.09\% & $\pm 0.070$ & 40.51 & 54.49\% \\
+\textbf{DQN (+MRU)}         & \textbf{63.58\%} & $\pm 0.066$ & \textbf{37.06} & \textbf{58.03\%} \\
 \midrule
-Phase-Oracle (Upper Bd)    & 52.30\% & $\pm 0.040$ & 48.22 & 50.80\% \\
-Belady MIN \cite{belady1966study} & 67.11\% & $\pm 0.029$ & 33.56 & 65.20\% \\
+Phase-Oracle (Upper Bd)    & 56.79\% & $\pm 0.067$ & 43.77 & 52.54\% \\
+Belady MIN \cite{belady1966study} & 68.63\% & $\pm 0.072$ & 32.06 & 66.19\% \\
 \bottomrule
 \end{tabularx}
 \label{tab:comparison}

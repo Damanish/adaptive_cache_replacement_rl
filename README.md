@@ -219,21 +219,22 @@ python plots.py
 
 | Policy / Algorithm | Hit Rate (%) | Std Dev | AMAT (cycles) | Post-Change Hit Rate (%) |
 | :--- | :---: | :---: | :---: | :---: |
-| **Fixed-FIFO** | 48.23% | $\pm 0.041$ | 52.25 | 46.12% |
-| **Fixed-LFU (Aged)** | 28.89% | $\pm 0.052$ | 71.40 | 27.50% |
-| **Fixed-LRU** | 50.70% | $\pm 0.043$ | 49.81 | 48.65% |
-| **Fixed-MRU** | 23.40% | $\pm 0.061$ | 76.83 | 22.10% |
-| **Random** | 45.55% | $\pm 0.038$ | 54.91 | 43.80% |
-| **FTL (Follow-The-Leader)** | 51.40% | $\pm 0.042$ | 49.11 | 49.20% |
-| **ARC (Megiddo & Modha)** | 52.68% | $\pm 0.039$ | 47.85 | 50.40% |
-| **Tabular Q-Learning (3 act)** | **52.36%** | $\pm 0.040$ | **48.16** | **50.15%** |
-| **Double DQN (3 act)** | **53.10%** | $\pm 0.038$ | **47.43** | **51.10%** |
-| **Double DQN (+MRU)** | **57.82%** | $\pm 0.035$ | **42.76** | **55.40\%** |
-| *Phase-Oracle (Upper Bound)* | 52.30% | $\pm 0.040$ | 48.22 | 50.80% |
-| *Belady MIN (Offline Optimum)*| 67.11% | $\pm 0.029$ | 33.56 | 65.20% |
+| **Fixed-FIFO** | 52.27% | $\pm 0.073$ | 48.26 | 51.28% |
+| **Fixed-LFU (Aged)** | 33.14% | $\pm 0.040$ | 67.19 | 33.76% |
+| **Fixed-LRU** | 54.71% | $\pm 0.074$ | 45.84 | 53.51% |
+| **Fixed-MRU** | 4.32%  | $\pm 0.028$ | 95.73 | 2.01%  |
+| **Random** | 50.88% | $\pm 0.068$ | 49.63 | 50.80% |
+| **FTL (Follow-The-Leader)** | 55.73% | $\pm 0.075$ | 44.83 | 53.41% |
+| **ARC (Megiddo & Modha)** | 57.11% | $\pm 0.066$ | 43.46 | 54.20% |
+| **Tabular Q-Learning (3 act)** | **56.79%** | $\pm 0.070$ | **43.78** | **53.75%** |
+| **Double DQN (3 act)** | **57.50%** | $\pm 0.068$ | **43.08** | **54.49%** |
+| **Tabular Q-Learning (+MRU)** | **60.09%** | $\pm 0.070$ | **40.51** | **54.49%** |
+| **Double DQN (+MRU)** | **63.58%** | $\pm 0.066$ | **37.06** | **58.03%** |
+| *Phase-Oracle (Upper Bound)* | 56.79% | $\pm 0.067$ | 43.77 | 52.54% |
+| *Belady MIN (Offline Optimum)*| 68.63% | $\pm 0.072$ | 32.06 | 66.19% |
 
 ### 7.2 Key Findings
-1. **DQN outperforms all static policies and ARC:** Double DQN reaches 53.10% hit rate in the 3-action setting, outperforming static LRU (50.70%) and ARC (52.68%), and scales to **57.82%** with MRU.
+1. **DQN outperforms all static policies and ARC:** Double DQN reaches 57.50% hit rate in the 3-action setting, outperforming static LRU (54.71%) and ARC (57.11%), and scales to **63.58%** with MRU.
 2. **Sub-2-Window Post-Change Recovery:** Following an abrupt phase shift, DQN recovers high hit rates within 100--200 requests (1--2 windows), whereas static policies remain depressed.
 3. **Regime-Specific Action Selection:** Empirical policy activations show DQN selecting LFU during Zipf skew (72%), LRU during drift and stack locality (84%), and FIFO/MRU during scans and loops.
 4. **Zero-Shot Capacity Generalization:** Feature normalization allows agents trained at $C=100$ to deploy directly on $C=50$ and $C=200$ caches without retraining.
