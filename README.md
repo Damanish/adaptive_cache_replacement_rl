@@ -9,7 +9,7 @@
 **Topic Selected:** 1. *RL for Adaptive Cache Replacement Under Changing Workloads*  
 **Author:** Ripu Daman Singh (Roll No: **B23CS1057**, Department of Computer Science & Engineering)  
 **Email:** `b23cs1057@iitj.ac.in`  
-**GitHub Repository:** [https://github.com/TavishiS/Emotion2Movies.git](https://github.com/TavishiS/Emotion2Movies.git)  
+**GitHub Repository:** [https://github.com/your-username/rl-adaptive-cache](https://github.com/your-username/rl-adaptive-cache)  
 **Target Submission / TAs:** Shubham Bagwari (`p22cs201@iitj.ac.in`), Divyaansh Mertia (`p25cs0004@iitj.ac.in`), Aniruddha Bohra (`p25cs201@iitj.ac.in`), Gajera Jahanvi Arvindkumar (`m25csa012@iitj.ac.in`), Bhatt Vasishth Bimalbhai (`m25csa007@iitj.ac.in`)
 
 ---
@@ -172,8 +172,8 @@ AI_assignment_2/
 * PyTorch, NumPy, Matplotlib, Pandas
 
 ```bash
-git clone https://github.com/TavishiS/Emotion2Movies.git
-cd AI_assignment_2
+git clone https://github.com/your-username/rl-adaptive-cache.git
+cd rl-adaptive-cache
 pip install -r requirements.txt
 ```
 
