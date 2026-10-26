@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RL for Adaptive Cache Replacement: Interactive Results</title>
+<meta name="description" content="Interactive results for a reinforcement-learning agent that switches cache eviction policies (LRU/LFU/FIFO/MRU) under changing workloads.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%232a78d6%22/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>RL for Adaptive Cache Replacement Under Changing Workloads</h1>
+    <p class="sub">Every 100 requests, a reinforcement-learning agent chooses which eviction rule
+      (LRU, LFU, FIFO, optionally MRU) a cache uses next. Explore the results on 20 held-out
+      multi-phase traces, along with every parameter of the formulation.</p>
+    <div class="meta">
+      <span>Lakshya Jain (B23CS1032) · Ripu Daman Singh (B23CS1057) · IIT Jodhpur</span>
+      <a href="https://github.com/Damanish/adaptive_cache_replacement_rl">GitHub repository</a>
+      <a href="https://github.com/Damanish/adaptive_cache_replacement_rl/blob/main/report/main.pdf">Report (PDF)</a>
+      <a href="https://github.com/Damanish/adaptive_cache_replacement_rl/blob/main/docs/ARCHITECTURE.md">Architecture guide</a>
+      <button class="btn theme-btn" id="theme" type="button" aria-label="Toggle dark mode">Dark mode</button>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#overview">Headline</a><a href="#overall">Overall</a><a href="#timeline">Scenario explorer</a>
+  <a href="#regimes">Per regime</a><a href="#actions">Policy choice</a><a href="#recovery">Recovery</a>
+  <a href="#sizes">Cache sizes</a><a href="#training">Training</a><a href="#stats">Significance</a>
+  <a href="#formulation">Formulation &amp; parameters</a>
+</div></nav>
+
+<main class="wrap">
+  <section id="overview">
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section id="overall">
+    <h2>Overall comparison</h2>
+    <p class="lead">Mean over 20 held-out test traces (seeds 1000–1019). AMAT uses
+      L<sub>hit</sub>=1 and L<sub>miss</sub>=100. Post-change is the mean hit rate over the 10
+      windows after each phase boundary. Belady's MIN is an offline optimum, shown for reference.</p>
+    <div class="card">
+      <div class="controls">
+        <div class="grp"><span>Actions</span><div class="seg" id="ov-act"></div></div>
+        <div class="grp"><span>Metric</span><div class="seg" id="ov-metric"></div></div>
+        <div class="grp"><span>Cache size C</span><div class="seg" id="ov-size"></div></div>
+      </div>
+      <div class="legend" id="ov-legend"></div>
+      <div class="chart" id="ov-chart"></div>
+      <p class="note" id="ov-note"></p>
+      <details><summary>Show as table</summary><div class="scroll" id="ov-table"></div></details>
+    </div>
+  </section>
+
+  <section id="timeline">
+    <h2>Scenario explorer</h2>
+    <p class="lead">Hand-crafted traces with known phase boundaries. Hover to read every method's
+      hit rate in a window. The strip below the chart shows which eviction rule the selected agent
+      chose in each window.</p>
+    <div class="card">
+      <div class="controls">
+        <div class="grp"><span>Scenario</span><select id="tl-scn"></select></div>
+        <div class="grp"><span>Actions</span><div class="seg" id="tl-act"></div></div>
+        <div class="grp"><span>Strip shows</span><div class="seg" id="tl-agent"></div></div>
+      </div>
+      <div class="controls"><div class="chips" id="tl-chips"></div></div>
+      <div class="chart" id="tl-chart"></div>
+      <div class="chart" id="tl-strip"></div>
+      <div class="legend" id="tl-plegend"></div>
+      <p class="note" id="tl-note"></p>
+    </div>
+  </section>
+
+  <section id="regimes">
+    <h2>Hit rate per workload regime</h2>
+    <p class="lead">Each regime favours a different classical policy. Stronger blue means a higher hit
+      rate; the outlined cell is the best non-clairvoyant method in each column.</p>
+    <div class="card">
+      <div class="controls">
+        <div class="grp"><span>Actions</span><div class="seg" id="rg-act"></div></div>
+      </div>
+      <div class="scroll" id="rg-table"></div>
+      <p class="note" id="rg-note"></p>
+    </div>
+  </section>
+
+  <section id="actions">
+    <h2>Which policy does the agent choose?</h2>
+    <p class="lead">Fraction of decision windows in which each eviction rule was active, split by
+      the true workload regime (test traces).</p>
+    <div class="card">
+      <div class="controls">
+        <div class="grp"><span>Agent</span><div class="seg" id="ac-agent"></div></div>
+        <div class="grp"><span>Actions</span><div class="seg" id="ac-act"></div></div>
+      </div>
+      <div class="legend" id="ac-legend"></div>
+      <div class="chart" id="ac-chart"></div>
+      <p class="note" id="ac-note"></p>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section id="recovery">
+      <h2>Recovery after a phase change</h2>
+      <p class="lead">Mean hit rate in the 10 windows after a workload switch.</p>
+      <div class="card">
+        <div class="controls"><div class="grp"><span>Actions</span><div class="seg" id="rc-act"></div></div></div>
+        <div class="controls"><div class="chips" id="rc-chips"></div></div>
+        <div class="chart" id="rc-chart"></div>
+        <details><summary>Show as table</summary><div class="scroll" id="rc-table"></div></details>
+      </div>
+    </section>
+    <section id="sizes">
+      <h2>Transfer across cache sizes</h2>
+      <p class="lead">Agents trained at C=100, evaluated without retraining (3 actions).</p>
+      <div class="card">
+        <div class="controls"><div class="chips" id="sz-chips"></div></div>
+        <div class="chart" id="sz-chart"></div>
+        <details><summary>Show as table</summary><div class="scroll" id="sz-table"></div></details>
+      </div>
+    </section>
+  </div>
+
+  <section id="training">
+    <h2>Training</h2>
+    <p class="lead">Training return under ε-greedy exploration (rolling mean over 15 episodes), and
+      greedy hit rate on the 8 validation traces. The checkpoint with the best validation hit rate is kept.</p>
+    <div class="card">
+      <div class="controls"><div class="chips" id="tr-chips"></div></div>
+      <div class="grid2">
+        <div><h3>Training return</h3><div class="chart" id="tr-return"></div></div>
+        <div><h3>Validation hit rate (greedy)</h3><div class="chart" id="tr-val"></div></div>
+      </div>
+      <p class="note">The greedy DQN policy is already close to its final quality at the first
+        evaluation (episode 15); most of the rise in training return comes from ε decaying to 0.03.</p>
+    </div>
+  </section>
+
+  <section id="stats">
+    <h2>Is the improvement significant?</h2>
+    <p class="lead">Paired comparison on the same 20 test traces: per-trace hit-rate difference,
+      95% t-interval, number of traces won, and the two-sided Wilcoxon signed-rank p-value.
+      This measures variance across traces only; each agent was trained from a single seed.</p>
+    <div class="card scroll" id="st-table"></div>
+  </section>
+
+  <section id="formulation">
+    <h2>Formulation &amp; parameters</h2>
+    <p class="lead">An episode is one trace. Each step covers W=100 requests, which makes the
+      problem a semi-MDP over decision windows. All values below come from the code and the
+      trained checkpoints.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>State 𝒮 ⊂ ℝ<sup id="f-dim"></sup></h3>
+        <p class="note">Computed only from past windows; the same layout is used for 3 and 4 actions.</p>
+        <div class="scroll" id="f-state"></div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Action 𝒜 (discrete)</h3>
+          <div class="legend" id="f-actions"></div>
+          <p class="note">3-action setting: {LRU, LFU, FIFO}. 4-action setting: adds MRU. The
+            action sets the victim rule for every miss in the next window. Policy switches never
+            flush the cache.</p>
+        </div>
+        <div class="card">
+          <h3>Reward ℛ</h3>
+          <div class="formula">r<sub>t</sub> = 2 (h<sub>t</sub> − h<sub>t</sub><sup>LRU</sup>) − λ · 𝟙[a<sub>t</sub> ≠ a<sub>t−1</sub>]</div>
+          <p class="note">h<sub>t</sub> is the agent's hit rate in window t, and
+            h<sub>t</sub><sup>LRU</sup> is the hit rate of a shadow LRU cache on the same window.
+            The shadow term does not depend on the agent's actions, so subtracting it lowers
+            variance without changing the optimal policy. λ = 0 in all experiments. Also
+            implemented: hit/miss 2h<sub>t</sub>−1 and latency −AMAT<sub>t</sub>/L<sub>miss</sub>.</p>
+        </div>
+        <div class="card">
+          <h3>Environment</h3>
+          <table id="f-env"></table>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Double DQN</h3><table id="f-dqn"></table></div>
+      <div class="card"><h3>Tabular Q-learning</h3><table id="f-tab"></table></div>
+    </div>
+    <div class="card">
+      <h3>Workload regimes</h3>
+      <div class="scroll"><table id="f-reg"></table></div>
+    </div>
+  </section>
+
+  <footer>
+    Generated from <code>results/</code> by <code>export_site_data.py</code>. To rebuild:
+    <code>python evaluate.py --actions 3 &amp;&amp; python evaluate.py --actions 4 &amp;&amp; python export_site_data.py</code>.
+    Source: <a href="https://github.com/Damanish/adaptive_cache_replacement_rl">github.com/Damanish/adaptive_cache_replacement_rl</a>.
+  </footer>
+</main>
+<div id="tip" role="tooltip"></div>
+<script src="assets/app.js"></script>
+</body>
+</html>

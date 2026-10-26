@@ -36,7 +36,8 @@
   \textbf{Lakshya Jain} (B23CS1032, \texttt{b23cs1032@iitj.ac.in}) \quad
   \textbf{Ripu Daman Singh} (B23CS1057, \texttt{b23cs1057@iitj.ac.in})\\
   Department of Computer Science and Engineering, IIT Jodhpur\\
-  \textbf{GitHub:} \url{https://github.com/Damanish/adaptive_cache_replacement_rl}\\[3pt]
+  \textbf{GitHub:} \url{https://github.com/Damanish/adaptive_cache_replacement_rl}\\
+  \textbf{Interactive results:} \url{https://damanish.github.io/adaptive_cache_replacement_rl/}\\[3pt]
   \includegraphics[width=0.93\textwidth]{figures/system_overview.png}
   \captionof{figure}{System overview. Once per window of $W{=}100$ requests the agent observes causal
   statistics of the past stream and picks the eviction rule used by every miss in the next window.
@@ -175,7 +176,6 @@ traces): with 3 actions DQN beats ARC by $+0.38$\,pp (95\% CI $[0.19,0.57]$, 18/
 $p{=}8.5{\times}10^{-4}$), FTL by $+1.77$\,pp and LRU by $+2.79$\,pp (20/20 each).
 Tabular Q-learning beats FTL and LRU but trails ARC by $0.32$\,pp ($p{=}0.04$). With MRU, DQN
 leads ARC by $+6.46$\,pp (19/20, $p{<}10^{-5}$) and lowers AMAT by 19.2\% versus LRU.
-Learning matters: FTL sees the same shadow hit rates but greedily chases last window's winner.
 
 \textbf{Where the gain comes from (Fig.~\ref{fig:regime},~\ref{fig:timeline}).} In the 3-action
 setting DQN uses aged LFU in zipf, scan and loop phases (94--99\% of windows) and LRU/FIFO in drift
@@ -192,8 +192,7 @@ Phase-Oracle (57.50 vs.\ 56.79 with 3 actions, 63.58 vs.\ 57.22 with 4), so Phas
 Evaluated without retraining at $C{=}200$, DQN remains best among online methods (57.6\% vs.\ ARC
 57.0\%); at $C{=}50$ it falls slightly behind ARC (56.2\% vs.\ 56.5\%).
 
-\textbf{Limitations.} Traces are synthetic; agents are trained from a single seed and should be
-re-run over several seeds; four full-size shadow caches add $4\times$ the cache's metadata
+\textbf{Limitations.} Traces are synthetic; agents are trained from a single seed; four full-size shadow caches add $4\times$ the cache's metadata
 (set sampling as in DIP~\cite{qureshi2007dip} would reduce this); the end of a trace is a time limit
 but is bootstrapped as terminal; and none of our baselines defends against loops (loop-resistant
 LIRS~\cite{jiang2002lirs} was not evaluated), so the +MRU gain partly reflects the larger action set.

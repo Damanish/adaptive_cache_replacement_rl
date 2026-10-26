@@ -2,7 +2,8 @@
 
 This guide explains how the `cache_rl` package is put together, how data flows from trace generation
 to the report figures, and how to extend it. For installation and the headline results see the
-[README](../README.md). For known issues and planned improvements see [AUDIT.md](AUDIT.md).
+[README](../README.md). The results are also published as an interactive page at
+<https://damanish.github.io/adaptive_cache_replacement_rl/> (source: [`docs/index.html`](index.html)).
 
 - [1. System overview](#1-system-overview)
 - [2. Module map](#2-module-map)
@@ -50,6 +51,7 @@ flowchart TD
         train[train.py]
         evaluate[evaluate.py]
         plots[plots.py]
+        site[export_site_data.py]
     end
     subgraph pkg["cache_rl package"]
         workloads[workloads.py<br/>trace generators]
@@ -73,6 +75,7 @@ flowchart TD
     train --> data & env & baselines & dqn & tq
     evaluate --> data & env & baselines & dqn & tq
     plots -.reads CSV/JSON.-> evaluate
+    site -.reads CSV/JSON.-> evaluate
 ```
 
 | Module | Responsibility | Key symbols |
@@ -88,6 +91,8 @@ flowchart TD
 | [`train.py`](../train.py) | Training CLI; keeps the best checkpoint on validation | `main`, `evaluate` |
 | [`evaluate.py`](../evaluate.py) | Runs all methods on held-out traces, writes CSV/JSON | `run_all`, `summarise`, `window_regimes` |
 | [`plots.py`](../plots.py) | Turns `results/` into `figures/` | `fig_*` functions |
+| [`export_site_data.py`](../export_site_data.py) | Bundles `results/` and the experiment config into `docs/data/results.json` for the interactive page | `main` |
+| [`docs/index.html`](index.html), [`docs/assets/`](assets) | Interactive results page served by GitHub Pages; plain HTML/SVG, no dependencies | `app.js` |
 
 ## 3. Core abstractions
 
@@ -256,6 +261,9 @@ flowchart LR
     CSV --> PL
     PL --> FIG[(figures/*.png)]
     FIG -. copy .-> REP[report/figures → main.tex]
+    CSV --> EX[export_site_data.py]
+    LOG --> EX
+    EX --> SITE[(docs/data/results.json<br/>→ GitHub Pages)]
 ```
 
 The full reproduction sequence (about 5 to 10 minutes on a laptop CPU; DQN trains at roughly 0.5 s per episode, Q-learning at 0.15 s):
@@ -270,6 +278,7 @@ python evaluate.py --actions 4
 python evaluate.py --actions 3 --cache-sizes 50 100 200
 python plots.py
 cp figures/*.png report/figures/
+python export_site_data.py      # refresh the interactive results page
 ```
 
 `evaluate.py` writes the scenario timelines (`scenarios_a*.json`) only when it is run with a single

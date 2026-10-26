@@ -3,7 +3,8 @@
 **Team:** Lakshya Jain (B23CS1032) · Ripu Daman Singh (B23CS1057), Dept. of CSE, IIT Jodhpur
 **Repository:** <https://github.com/Damanish/adaptive_cache_replacement_rl>
 **Report:** [`report/main.pdf`](report/main.pdf) (2 pages, references included) ·
-**Docs:** [Architecture & developer guide](docs/ARCHITECTURE.md) · [Audit & roadmap](docs/AUDIT.md)
+**Interactive results:** <https://damanish.github.io/adaptive_cache_replacement_rl/> ·
+**Docs:** [Architecture & developer guide](docs/ARCHITECTURE.md)
 
 No single cache eviction policy is best for every access pattern. LRU collapses on sequential
 scans and on loops larger than the cache. LFU holds on to blocks that were popular in an earlier
@@ -132,6 +133,7 @@ python evaluate.py --actions 3                         # ≈25 s, writes results
 python evaluate.py --actions 4
 python evaluate.py --actions 3 --cache-sizes 50 100 200
 python plots.py                                        # writes figures/*.png
+python export_site_data.py                             # writes docs/data/results.json for the site
 ```
 
 To retrain from scratch, which overwrites `models/` and `results/train_log_*.csv`:
@@ -157,6 +159,8 @@ flowchart LR
     L --> PL[plots.py]
     R --> PL --> F[(figures/)]
     F --> REP[report/main.tex]
+    R --> EX[export_site_data.py] --> SITE[(docs/ → GitHub Pages)]
+    L --> EX
 ```
 
 ## 4. Results (C = 100, 20 held-out test traces)
@@ -193,7 +197,7 @@ after each phase boundary. With 4 actions, FTL reaches 56.15% and Phase-Oracle 5
 
 1. **DQN is the best online method.** Its lead over ARC is small but consistent in the 3-action
    setting, and large with MRU. Tabular Q-learning beats LRU and FTL but not ARC. Both agents are
-   trained from a single seed; see [AUDIT H2](docs/AUDIT.md#h2-statistical-support-for-the-headline-result--partly-fixed).
+   trained from a single seed, so this measures variance across traces, not across training runs.
 2. **Where the gain comes from.** With 3 actions, DQN uses aged LFU in 94–99% of zipf, scan and loop
    windows, and LRU/FIFO in drift and stack. This mainly helps on scans (0.278 vs. LRU 0.201) and zipf
    (0.608 vs. 0.547). With MRU, the gain is almost entirely in loops (0.636 vs. ARC 0.299). The agent
@@ -205,10 +209,12 @@ after each phase boundary. With 4 actions, FTL reaches 56.15% and Phase-Oracle 5
 4. **Transfer across cache sizes without retraining.** At C = 200, DQN is still the best online
    method (57.6% vs. ARC 57.0%). At C = 50 it is slightly behind ARC (56.2% vs. 56.5%).
 5. **Training dynamics.** DQN's greedy validation hit rate is close to its final value by episode 15.
-   Most of the rise in training return comes from ε decay
-   (see [AUDIT H3](docs/AUDIT.md#h3-how-much-does-training-improve-the-policy--open)).
+   Most of the rise in training return comes from ε decay; a fresh 20-episode run already reaches
+   0.530 validation hit rate, against 0.531 for the committed checkpoint.
 
-Figures are in [`figures/`](figures): training curves, overall comparison, per-regime hit rates,
+All of these results can be explored interactively at **<https://damanish.github.io/adaptive_cache_replacement_rl/>**: filter by action set,
+metric and cache size, hover over scenario timelines, and inspect every parameter. The static
+figures are in [`figures/`](figures): training curves, overall comparison, per-regime hit rates,
 post-change recovery, action distributions, cache-size transfer, and scenario timelines.
 
 ## 5. Related work
