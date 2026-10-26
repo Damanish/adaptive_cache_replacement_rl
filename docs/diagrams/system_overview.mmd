@@ -1,0 +1,13 @@
+%%{init: {"theme": "neutral", "flowchart": {"curve": "basis", "nodeSpacing": 18, "rankSpacing": 26}, "themeVariables": {"fontSize": "15px", "fontFamily": "Helvetica"}}}%%
+flowchart LR
+    T["Request stream<br/>(multi-phase trace)"] --> G["Shadow caches<br/>LRU · LFU · FIFO · MRU"]
+    T --> F["Window statistics<br/>reuse · entropy · Jaccard"]
+    G --> S(("s<sub>t</sub> ∈ ℝ<sup>22</sup>"))
+    F --> S
+    S --> A["Agent<br/>Double DQN / tabular Q"]
+    A -- "a<sub>t</sub> = eviction rule" --> C["MultiPolicyCache<br/>(shared metadata, no flush)"]
+    T --> C
+    C -- "hits in window t" --> R["Reward<br/>2(h<sub>t</sub> − h<sub>t</sub><sup>LRU</sup>)"]
+    G -. "h<sub>t</sub><sup>LRU</sup>" .-> R
+    R --> A
+    C -. "own hit rate, dead-block ratio" .-> S
