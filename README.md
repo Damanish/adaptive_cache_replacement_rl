@@ -1,19 +1,5 @@
 # Adaptive Cache Replacement Under Changing Workloads via Reinforcement Learning
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-**Course:** AI Assignment 2: Real-Life Use Cases of Reinforcement Learning  
-**Institution:** Indian Institute of Technology Jodhpur (IIT Jodhpur)  
-**Topic Selected:** 1. *RL for Adaptive Cache Replacement Under Changing Workloads*  
-**Author:** Ripu Daman Singh (Roll No: **B23CS1057**, Department of Computer Science & Engineering)  
-**Email:** `b23cs1057@iitj.ac.in`  
-**GitHub Repository:** [https://github.com/your-username/rl-adaptive-cache](https://github.com/your-username/rl-adaptive-cache)  
-**Target Submission / TAs:** Shubham Bagwari (`p22cs201@iitj.ac.in`), Divyaansh Mertia (`p25cs0004@iitj.ac.in`), Aniruddha Bohra (`p25cs201@iitj.ac.in`), Gajera Jahanvi Arvindkumar (`m25csa012@iitj.ac.in`), Bhatt Vasishth Bimalbhai (`m25csa007@iitj.ac.in`)
-
----
-
 ## 1. Project Motivation & Overview
 
 Caches in modern computing systems (CPU L3 caches, OS page buffers, key-value stores, distributed file systems) rely on eviction policies to maximize hit rates and minimize Average Memory Access Time:
